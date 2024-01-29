@@ -1,8 +1,4 @@
-use std::{
-    ffi::OsString,
-    os::windows::ffi::OsStringExt,
-    process::{Command, Stdio},
-};
+use std::process::{Command, Stdio};
 
 use anyhow::Result;
 
@@ -36,7 +32,7 @@ fn main() -> Result<()> {
 
     client.send_message(&Message::text("Hello world!"))?;
 
-    let mut fio_out_reader = linereader::LineReader::new(fio_out);
+    let mut fio_out_reader = LineReader::new(fio_out);
     while let Some(Ok(s)) = fio_out_reader.next_line() {
         client.send_message(&Message::text(String::from_utf8_lossy(s)))?;
     }
