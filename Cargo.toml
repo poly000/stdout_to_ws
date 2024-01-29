@@ -6,4 +6,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.79"
 linereader = "0.4.0"
-websocket = { version = "0.27.0", default-features = false, features = ["sync"] }
+websocket = { version = "0.27.0", default-features = false, features = [
+    "sync",
+] }
+
+[profile.release]
+lto = true
+strip = true
+opt-level = "z"

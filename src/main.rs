@@ -22,6 +22,7 @@ fn main() -> Result<()> {
         .arg("--eta-newline=1")
         .arg("--time_based")
         .arg("--runtime=30")
+        .arg("--ioengine=mmap")
         .stdout(Stdio::piped())
         .spawn()?;
 
