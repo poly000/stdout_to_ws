@@ -1,39 +1,24 @@
 use std::{
+    ffi::OsString,
+    os::windows::ffi::OsStringExt,
     process::{Command, Stdio},
-    time::Duration,
 };
 
 use anyhow::Result;
 
+use linereader::LineReader;
+use websocket::{server::WsServer, Message};
 #[cfg(target_os = "android")]
-use win_socket_command::android::{FIO_PATH, WEBSOCAT_PATH};
+use win_socket_command::android::FIO_PATH;
 
 fn main() -> Result<()> {
-    let mut websocat = {
-        #[cfg(target_os = "android")]
-        let cmd = Command::new(WEBSOCAT_PATH.get_or_init(|| String::new()));
-        #[cfg(target_os = "windows")]
-        let cmd = Command::new("./websocat");
-        #[cfg(not(any(target_os = "windows", target_os = "android")))]
-        let cmd = Command::new("websocat");
-        cmd
-    };
-
-    let mut out = websocat
-        .arg("--text")
-        .arg("--conncap")
-        .arg("1")
-        .arg("--exit-on-eof")
-        .arg("ws-l:127.0.0.1:11451")
-        .arg("reuse-raw:stdio:")
-        .stdin(Stdio::piped())
-        .spawn()?;
-
     #[cfg(target_os = "android")]
     let mut fio = Command::new(FIO_PATH);
     #[cfg(not(any(target_os = "android")))]
     let mut fio = Command::new("fio");
-    fio.arg("--size=2048M")
+
+    let mut fio = fio
+        .arg("--size=2048M")
         .arg("--name=read")
         .arg("--output-format=normal")
         .arg("--filename=0.txt")
@@ -41,12 +26,20 @@ fn main() -> Result<()> {
         .arg("--eta-newline=1")
         .arg("--time_based")
         .arg("--runtime=30")
-        .stdout(out.stdin.take().unwrap())
-        .spawn()?
-        .wait()?;
+        .stdout(Stdio::piped())
+        .spawn()?;
 
-    std::thread::sleep(Duration::from_secs(1));
-    out.kill()?;
+    let fio_out = fio.stdout.take().unwrap();
+
+    let ws_server = WsServer::bind("127.0.0.1:11451")?.accept().unwrap();
+    let mut client = ws_server.accept().unwrap();
+
+    client.send_message(&Message::text("Hello world!"))?;
+
+    let mut fio_out_reader = linereader::LineReader::new(fio_out);
+    while let Some(Ok(s)) = fio_out_reader.next_line() {
+        client.send_message(&Message::text(String::from_utf8_lossy(s)))?;
+    }
 
     Ok(())
 }
